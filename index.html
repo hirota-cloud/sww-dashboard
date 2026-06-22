@@ -67,6 +67,13 @@
     .billing-company { color:#666; flex:1; }
     .billing-detail { color:#888; font-size:11px; flex:1; }
     .billing-proj-amount { font-weight:600; color:#1a2e44; white-space:nowrap; }
+    .billing-project-row { display:grid; grid-template-columns:70px 1fr 1fr auto; align-items:center; gap:8px; padding:9px 18px; border-bottom:1px solid
+  #f7f7f7; font-size:12px; }
+    .billing-project-row:last-child { border-bottom:none; }
+    .bpr-month { color:#999; white-space:nowrap; }
+    .bpr-company { color:#555; }
+    .bpr-detail { color:#888; }
+    .bpr-amount { font-weight:600; color:#1a2e44; white-space:nowrap; text-align:right; }
   </style>
   </head>
   <body>
@@ -295,17 +302,17 @@
     }
   }
 
-     function renderBilling() {
+    function renderBilling() {
       const deptF = filters['bl-dept'] || '';
-      const src = deptF ? billingData.filter(m => m.dept === deptF) : billingData;
+      const src = deptF ? billingData.filter(m => m.depts.includes(deptF)) : billingData;
       const c = document.getElementById('billing-container');
       if (!src.length) { c.innerHTML = '<div class="state-msg">データなし</div>'; return; }
-      const sorted = [...src].sort((a,b) => (a.dept+a.name).localeCompare(b.dept+b.name,'ja'));
+      const sorted = [...src].sort((a,b) => a.name.localeCompare(b.name,'ja'));
       c.innerHTML = sorted.map(m => {
         const months = Object.entries(m.months).sort((a,b) => b[0].localeCompare(a[0]));
         const latest = months.length ? months[0][1].amount : 0;
-        const monthBlocks = months.map(([month, data]) => {
-          const projects = data.projects.map(p => {
+        const rows = months.flatMap(([month, data]) =>
+          data.projects.map(p => {
             let detail = '';
             if (p.payType === '月額' || p.payType === '月給') {
               detail = `月額 ¥${fmtCost(p.rate)}`;
@@ -314,34 +321,26 @@
             } else {
               detail = p.hours ? `${p.hours}h × ¥${fmtCost(p.rate)}/h` : `¥${fmtCost(p.rate)}/h`;
             }
-            return `<div class="billing-project">
-              <span class="billing-company">${p.company||'-'}</span>
-              <span class="billing-detail">${detail}</span>
-              <span class="billing-proj-amount">¥${fmtCost(p.amount)}</span>
+            return `<div class="billing-project-row">
+              <span class="bpr-month">${month}</span>
+              <span class="bpr-company">${deptBadge(p.dept)} ${p.company||'-'}</span>
+              <span class="bpr-detail">${detail}</span>
+              <span class="bpr-amount">¥${fmtCost(p.amount)}</span>
             </div>`;
-          }).join('');
-          return `<div class="billing-month-block">
-            <div class="billing-month-row" onclick="toggleMonth(this)">
-              <span class="billing-month-label">${month}</span>
-              <div style="display:flex;align-items:center;gap:12px">
-                <span class="billing-month-amount">¥${fmtCost(data.amount)}</span>
-                <span class="chevron" style="font-size:10px;color:#bbb">▼</span>
-              </div>
-            </div>
-            <div class="billing-project-list" style="display:none">${projects}</div>
-          </div>`;
-        }).join('');
+          })
+        ).join('');
+        const deptBadges = m.depts.map(d => deptBadge(d)).join('');
         return `<div class="billing-member">
           <div class="billing-member-header" onclick="toggleBilling(this)">
             <div style="display:flex;align-items:center;gap:10px">
-              <span style="font-weight:700">${m.name}</span>${deptBadge(m.dept)}
+              <span style="font-weight:700">${m.name}</span>${deptBadges}
             </div>
             <div style="display:flex;align-items:center;gap:12px">
               <span style="font-size:12px;color:#888">最新 ¥${fmtCost(latest)}</span>
               <span class="chevron">▼</span>
             </div>
           </div>
-          <div class="billing-months">${monthBlocks}</div>
+          <div class="billing-months">${rows}</div>
         </div>`;
       }).join('');
     }
