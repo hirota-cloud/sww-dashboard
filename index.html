@@ -74,6 +74,9 @@
     .bpr-company { color:#555; }
     .bpr-detail { color:#888; }
     .bpr-amount { font-weight:600; color:#1a2e44; white-space:nowrap; text-align:right; }
+     .billing-month-summary { display:flex; align-items:center; padding:10px 18px; border-bottom:1px solid #f7f7f7; font-size:13px; }
+  .billing-month-summary.expandable { cursor:pointer; }
+  .billing-month-summary.expandable:hover { background:#fafbfc; }
   </style>
   </head>
   <body>
@@ -302,7 +305,7 @@
     }
   }
 
-    function renderBilling() {
+       function renderBilling() {
       const deptF = filters['bl-dept'] || '';
       const src = deptF ? billingData.filter(m => m.depts.includes(deptF)) : billingData;
       const c = document.getElementById('billing-container');
@@ -311,24 +314,43 @@
       c.innerHTML = sorted.map(m => {
         const months = Object.entries(m.months).sort((a,b) => b[0].localeCompare(a[0]));
         const latest = months.length ? months[0][1].amount : 0;
-        const rows = months.flatMap(([month, data]) =>
-          data.projects.map(p => {
+        const monthBlocks = months.map(([month, data]) => {
+          const multi = data.projects.length > 1;
+          if (!multi) {
+            const p = data.projects[0];
             let detail = '';
-            if (p.payType === '月額' || p.payType === '月給') {
-              detail = `月額 ¥${fmtCost(p.rate)}`;
-            } else if (p.payType === '件数') {
-              detail = `${p.hours}件 × ¥${fmtCost(p.rate)}/件`;
-            } else {
-              detail = p.hours ? `${p.hours}h × ¥${fmtCost(p.rate)}/h` : `¥${fmtCost(p.rate)}/h`;
-            }
+            if (p.payType === '月額' || p.payType === '月給') detail = `月額 ¥${fmtCost(p.rate)}`;
+            else if (p.payType === '件数') detail = `${p.hours}件 × ¥${fmtCost(p.rate)}/件`;
+            else detail = p.hours ? `${p.hours}h × ¥${fmtCost(p.rate)}/h` : `¥${fmtCost(p.rate)}/h`;
             return `<div class="billing-project-row">
               <span class="bpr-month">${month}</span>
               <span class="bpr-company">${deptBadge(p.dept)} ${p.company||'-'}</span>
               <span class="bpr-detail">${detail}</span>
+              <span class="bpr-amount">¥${fmtCost(data.amount)}</span>
+            </div>`;
+          }
+          const projects = data.projects.map(p => {
+            let detail = '';
+            if (p.payType === '月額' || p.payType === '月給') detail = `月額 ¥${fmtCost(p.rate)}`;
+            else if (p.payType === '件数') detail = `${p.hours}件 × ¥${fmtCost(p.rate)}/件`;
+            else detail = p.hours ? `${p.hours}h × ¥${fmtCost(p.rate)}/h` : `¥${fmtCost(p.rate)}/h`;
+            return `<div class="billing-project-row" style="padding-left:32px">
+              <span class="bpr-month"></span>
+              <span class="bpr-company">${deptBadge(p.dept)} ${p.company||'-'}</span>
+              <span class="bpr-detail">${detail}</span>
               <span class="bpr-amount">¥${fmtCost(p.amount)}</span>
             </div>`;
-          })
-        ).join('');
+          }).join('');
+          return `<div>
+            <div class="billing-month-summary expandable" onclick="toggleMonth(this)">
+              <span class="bpr-month">${month}</span>
+              <span style="flex:1"></span>
+              <span class="billing-month-amount">¥${fmtCost(data.amount)}</span>
+              <span class="chevron" style="font-size:10px;color:#bbb;margin-left:8px">▼</span>
+            </div>
+            <div class="billing-project-list" style="display:none">${projects}</div>
+          </div>`;
+        }).join('');
         const deptBadges = m.depts.map(d => deptBadge(d)).join('');
         return `<div class="billing-member">
           <div class="billing-member-header" onclick="toggleBilling(this)">
@@ -340,7 +362,7 @@
               <span class="chevron">▼</span>
             </div>
           </div>
-          <div class="billing-months">${rows}</div>
+          <div class="billing-months">${monthBlocks}</div>
         </div>`;
       }).join('');
     }
